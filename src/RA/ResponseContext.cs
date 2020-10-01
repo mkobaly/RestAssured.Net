@@ -2,12 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json.Schema;
+//using Newtonsoft.Json.Linq;
+//using Newtonsoft.Json.Schema;
 using RA.Enums;
 using RA.Exceptions;
 using RA.Extensions;
 using System.Xml.Linq;
+using System.Net.Http;
 
 namespace RA
 {
@@ -23,7 +24,20 @@ namespace RA
         private readonly List<LoadResponse> _loadResponses;
         private bool _isSchemaValid = true;
         private List<string> _schemaErrors = new List<string>();
+        private readonly HttpResponseMessage _response;
 
+
+        public ResponseContext(HttpResponseMessage response, TimeSpan elaspedExecutionTime, List<LoadResponse> loadResponses)
+        {
+            _response = response;
+            _content = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            _statusCode = response.StatusCode;
+            _headers = response.Content.Headers.ToDictionary(x => x.Key.Trim(), x => x.Value);
+            _elapsedExecutionTime = elaspedExecutionTime;
+            _loadResponses = loadResponses ?? new List<LoadResponse>();
+
+            Initialize();
+        }
 
         public ResponseContext(HttpStatusCode statusCode, string content, Dictionary<string, IEnumerable<string>> headers, TimeSpan elaspedExecutionTime, List<LoadResponse> loadResponses)
         {
@@ -69,6 +83,19 @@ namespace RA
             return TestWrapper(ruleName, () => func.Invoke(_parsedContent));
         }
 
+        public ResponseContext TestBody<T>(string ruleName, Func<T, bool> func)
+        {
+            _parsedContent = ServiceStack.Text.JsonSerializer.DeserializeFromString<T>(_content);
+            return TestWrapper(ruleName, () => func.Invoke(_parsedContent));
+        }
+
+        public ResponseContext TestBody<T>(Action<T> action)
+        {
+            _parsedContent = ServiceStack.Text.JsonSerializer.DeserializeFromString<T>(_content);
+            action.Invoke(_parsedContent);
+            return this;
+        }
+
         /// <summary>
         /// Setup a test against the response headers.
         /// </summary>
@@ -79,6 +106,18 @@ namespace RA
         public ResponseContext TestHeader(string ruleName, string key, Func<string, bool> func)
         {
             return TestWrapper(ruleName, () => func.Invoke(HeaderValue(key.Trim())));
+        }
+
+        public ResponseContext TestHeader(Action<ResponseContext> action)
+        {
+            action.Invoke(this);
+            return this;
+        }
+
+        public ResponseContext TestResponse(Action<HttpResponseMessage> action)
+        {
+            action.Invoke(_response);
+            return this;
         }
 
         /// <summary>
@@ -118,6 +157,12 @@ namespace RA
             return TestWrapper(ruleName, () => func.Invoke((int)_statusCode));
         }
 
+        public ResponseContext TestStatus(Action<HttpStatusCode> action)
+        {
+            action.Invoke(_statusCode);
+            return this;
+        }
+
         private ResponseContext TestWrapper(string ruleName, Func<bool> func)
         {
             if (_assertions.ContainsKey(ruleName))
@@ -143,38 +188,38 @@ namespace RA
         /// </summary>
         /// <param name="schema"></param>
         /// <returns></returns>
-        public ResponseContext Schema(string schema)
-        {
-            JSchema jSchema = null;
+        //public ResponseContext Schema(string schema)
+        //{
+        //    JSchema jSchema = null;
 
-            try
-            {
-                jSchema = JSchema.Parse(schema);
-            }
-            catch (Exception ex)
-            {
-                throw new ArgumentException("Schema is not valid", "schema", ex);
-            }
+        //    try
+        //    {
+        //        jSchema = JSchema.Parse(schema);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        throw new ArgumentException("Schema is not valid", "schema", ex);
+        //    }
 
-            IList<string> messages;
+        //    IList<string> messages;
 
-            var trimmedContent = _content.TrimStart();
+        //    var trimmedContent = _content.TrimStart();
 
-            _isSchemaValid =
-                trimmedContent.StartsWith("{")
-                    ? JObject.Parse(_content).IsValid(jSchema, out messages)
-                    : JArray.Parse(_content).IsValid(jSchema, out messages);
+        //    _isSchemaValid =
+        //        trimmedContent.StartsWith("{")
+        //            ? JObject.Parse(_content).IsValid(jSchema, out messages)
+        //            : JArray.Parse(_content).IsValid(jSchema, out messages);
 
-            if (!_isSchemaValid)
-            {
-                foreach (var message in messages)
-                {
-                    _schemaErrors.Add(message);
-                }
-            }
+        //    if (!_isSchemaValid)
+        //    {
+        //        foreach (var message in messages)
+        //        {
+        //            _schemaErrors.Add(message);
+        //        }
+        //    }
 
-            return this;
-        }
+        //    return this;
+        //}
 
         public ResponseContext Assert(string ruleName)
         {
@@ -230,7 +275,8 @@ namespace RA
                 {
                     try
                     {
-                        _parsedContent = JObject.Parse(_content);
+                        //TODO: fix this
+                        //_parsedContent = JObject.Parse(_content);
                         return;
                     }
                     catch
@@ -239,7 +285,8 @@ namespace RA
 
                     try
                     {
-                        _parsedContent = JArray.Parse(_content);
+                        //TODO: why duplicated? fix this
+                        //_parsedContent = JArray.Parse(_content);
                         return;
                     }
                     catch
@@ -266,8 +313,9 @@ namespace RA
                 }
             }
 
-            if (!string.IsNullOrEmpty(_content))
-                throw new Exception(string.Format("({0}) not supported", contentType));
+            _parsedContent = _content;
+            //if (!string.IsNullOrEmpty(_content))
+            //    throw new Exception(string.Format("({0}) not supported", contentType));
         }
 
         private void ParseLoad()
@@ -288,7 +336,7 @@ namespace RA
             return HeaderValue(HeaderType.ContentType.Value);
         }
 
-        private string HeaderValue(string key)
+        public string HeaderValue(string key)
         {
             return _headers.Where(x => x.Key.Equals(key, StringComparison.InvariantCultureIgnoreCase))
                     .Select(x => string.Join(", ", x.Value))

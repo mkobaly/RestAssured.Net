@@ -72,22 +72,22 @@ namespace RA.Tests
                     .Debug();            
         }
 
-        [Test]
-        public void TestSchemaValidation()
-        {
-            new RestAssured()
-                .Given()
-                    .Header("Content-Type", "application/json")
-                    .Header("Accept-Encoding", "gzip, deflate")
-                    .Host("https://catalog.data.gov/api/3")
-                    .Uri("/api/3")
-                    //.Uri("/local-partners/marketplace/health/connected")
-                .When()
-                    .Get()
-                .Then()
-                    .Schema(@"{""$id"":""http://example.com/example.json"",""type"":""object"",""definitions"":{},""$schema"":""http://json-schema.org/draft-07/schema#"",""properties"":{""version"":{""$id"":""/properties/version"",""type"":""integer"",""title"":""TheVersionSchema"",""default"":0,""examples"":[3]}}}")
-                    .Debug()
-                    .AssertSchema();
-        }
+        //[Test]
+        //public void TestSchemaValidation()
+        //{
+        //    new RestAssured()
+        //        .Given()
+        //            .Header("Content-Type", "application/json")
+        //            .Header("Accept-Encoding", "gzip, deflate")
+        //            .Host("https://catalog.data.gov/api/3")
+        //            .Uri("/api/3")
+        //            //.Uri("/local-partners/marketplace/health/connected")
+        //        .When()
+        //            .Get()
+        //        .Then()
+        //            .Schema(@"{""$id"":""http://example.com/example.json"",""type"":""object"",""definitions"":{},""$schema"":""http://json-schema.org/draft-07/schema#"",""properties"":{""version"":{""$id"":""/properties/version"",""type"":""integer"",""title"":""TheVersionSchema"",""default"":0,""examples"":[3]}}}")
+        //            .Debug()
+        //            .AssertSchema();
+        //}
     }
 }

@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using Newtonsoft.Json;
+//using Newtonsoft.Json;
 using RA.Enums;
 using RA.Extensions;
+using ServiceStack;
 
 namespace RA
 {
@@ -15,9 +16,10 @@ namespace RA
         private string _host;
         private int _port;
         private string _uri;
+        private string _moduleUri; //This is the prefix before the Uri, and after host. Ex: http://host.com / moduleUri / uri
         private string _body;
         private HttpClient _httpClient;
-        private bool _useHttps;
+        //private bool _useHttps;
         private readonly Dictionary<string, string> _headers = new Dictionary<string, string>();
         private readonly Dictionary<string, string> _parameters = new Dictionary<string, string>();
         private readonly Dictionary<string, string> _queryStrings = new Dictionary<string, string>();
@@ -25,17 +27,22 @@ namespace RA
         private readonly List<FileContent> _files = new List<FileContent>();
 	    private TimeSpan? _timeout = null;
 
-        private Func<string, IDictionary<string, string>, List<string>> GetHeaderFor = (filter, headers) =>
+        private Func<string, string, IDictionary<string, string>, List<string>> GetHeaderFor = (filter, defaultValue, headers) =>
         {
             var value =
                 headers.Where(x => x.Key.Equals(filter, StringComparison.InvariantCultureIgnoreCase))
                     .Select(x => x.Value)
-                    .DefaultIfEmpty(string.Empty)
+                    .DefaultIfEmpty(defaultValue)
                     .First();
 
             return !string.IsNullOrEmpty(value) ? value.Split(new[] { ',' }).Select(x => x.Trim()).ToList() : new List<string>();
         };
 
+        public SetupContext()
+        {
+            var host = Environment.GetEnvironmentVariable("integration_tests_host");
+            if (!string.IsNullOrWhiteSpace(host)) _host = host;
+        }
 
 
         /// <summary>
@@ -94,6 +101,23 @@ namespace RA
         private bool PortSpecified()
         {
             return _port > 0 && _port != 88;
+        }
+
+        /// <summary>
+        /// Setup the Module (application) Uri. This is after the host but before the Uri
+        /// Ex: /someapplication that then results in http://host.com/someapplication/resource/identifier/path?query=xx
+        /// </summary>
+        /// <param name="uri"></param>
+        /// <returns></returns>
+        public SetupContext ModuleUri(string uri)
+        {
+            _moduleUri = uri;
+            return this;
+        }
+
+        public string ModuleUri()
+        {
+            return _moduleUri;
         }
 
         /// <summary>
@@ -160,7 +184,7 @@ namespace RA
         {
             //In the future, this needs to detect the content type and use
             //the correct serializer.
-            _body = JsonConvert.SerializeObject(body);
+            _body = body.ToJson();
             return this;
         }
 
@@ -281,7 +305,12 @@ namespace RA
         /// <returns></returns>
         public List<string> HeaderContentType()
         {
-            return GetHeaderFor(HeaderType.ContentType.Value, _headers);
+            var contentTypeHeaders = GetHeaderFor(HeaderType.ContentType.Value, "application/json", _headers);
+            return contentTypeHeaders;
+            //if (!contentTypeHeaders.Any())
+            //{
+            //    contentTypeHeaders.Add(HeaderType.ContentType.Value)
+            //}
         }
 
         /// <summary>
@@ -290,7 +319,7 @@ namespace RA
         /// <returns></returns>
         public List<string> HeaderAccept()
         {
-            return GetHeaderFor(HeaderType.Accept.Value, _headers);
+            return GetHeaderFor(HeaderType.Accept.Value, "*/*", _headers);
         }
 
         /// <summary>
@@ -299,7 +328,7 @@ namespace RA
         /// <returns></returns>
         public List<string> HeaderAcceptEncoding()
         {
-            return GetHeaderFor(HeaderType.AcceptEncoding.Value, _headers);
+            return GetHeaderFor(HeaderType.AcceptEncoding.Value, "gzip, deflate, br", _headers);
         }
 
         /// <summary>
@@ -308,7 +337,7 @@ namespace RA
         /// <returns></returns>
         public List<string> HeaderAcceptCharset()
         {
-            return GetHeaderFor(HeaderType.AcceptCharset.Value, _headers);
+            return GetHeaderFor(HeaderType.AcceptCharset.Value, "", _headers);
         }
 
         /// <summary>
@@ -417,7 +446,7 @@ namespace RA
             {
                 AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
 				//we will add cookies as a header latter in the request
-				UseCookies = false,
+				//UseCookies = false,
             };
             _httpClient = new HttpClient(handler, true);
             return _httpClient;
@@ -428,16 +457,16 @@ namespace RA
         /// e.g. https://...
         /// </summary>
         /// <returns></returns>
-        public SetupContext UseHttps()
-        {
-            _useHttps = true;
-            return this;
-        }
+        //public SetupContext UseHttps()
+        //{
+        //    _useHttps = true;
+        //    return this;
+        //}
 
-        public bool UsesHttps()
-        {
-            return _useHttps;
-        }
+        //public bool UsesHttps()
+        //{
+        //    return _useHttps;
+        //}
 
         public HttpActionContext When()
         {

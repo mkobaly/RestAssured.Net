@@ -73,7 +73,9 @@ namespace RA
 	        AppendCookies(request);
 	        SetTimeout();
 
-			return request;
+            request.Content = BuildContent();
+
+            return request;
         }
 
         private HttpRequestMessage BuildPost()
@@ -293,15 +295,17 @@ namespace RA
         private ResponseContext BuildFromResponse(HttpResponseMessageWrapper result)
         {
             // var content = AsyncContext.Run(async () => await result.Response.Content.ReadAsStringAsync());
-            var content = result.Response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            //var content = result.Response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
 
-            return new ResponseContext(
-                result.Response.StatusCode,
-                content,
-                result.Response.Content.Headers.ToDictionary(x => x.Key.Trim(), x => x.Value),
-                result.ElaspedExecution,
-                _loadReponses.ToList()
-                );
+            return new ResponseContext(result.Response, result.ElaspedExecution,_loadReponses.ToList());
+
+            //return new ResponseContext(
+            //    result.Response.StatusCode,
+            //    content,
+            //    result.Response.Content.Headers.ToDictionary(x => x.Key.Trim(), x => x.Value),
+            //    result.ElaspedExecution,
+            //    _loadReponses.ToList()
+            //    );
 
         }
 

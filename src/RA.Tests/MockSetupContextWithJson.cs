@@ -44,31 +44,31 @@ namespace RA.Tests
         public void UriWithPort()
         {
            _setup
-                .Host("localhost")
+                .Host("http://localhost")
                 .Port(1500)
                 .Uri("/test");
 
             var httpContext = _setup.When();
             httpContext.SetUrl(null);
 
-            Assert.AreEqual("localhost:1500", _setup.Host());
+            Assert.AreEqual("http://localhost:1500", _setup.Host());
             Assert.AreEqual("http://localhost:1500/test", httpContext.Url());
         }
 
         [Test]
-        public void UrlUsingHttps()
+        public void UriWithModulePort()
         {
             _setup
-                .Host("localhost")
-                .Port(1500)
-                .Uri("/test")
-                .UseHttps();
+                 .Host("http://localhost")
+                 .Port(1500)
+                 .ModuleUri("/abc.api")
+                 .Uri("/test");
 
             var httpContext = _setup.When();
             httpContext.SetUrl(null);
 
-            Assert.AreEqual("localhost:1500", _setup.Host());
-            Assert.AreEqual("https://localhost:1500/test", httpContext.Url());
+            Assert.AreEqual("http://localhost:1500", _setup.Host());
+            Assert.AreEqual("http://localhost:1500/abc.api/test", httpContext.Url());
         }
     }
 }
