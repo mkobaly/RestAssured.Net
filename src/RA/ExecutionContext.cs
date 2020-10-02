@@ -31,14 +31,24 @@ namespace RA
             _httpClient = _setupContext.HttpClient();
         }
 
-        public ResponseContext Then()
+        public ResponseContext<T> Then<T>()
         {
             if (_httpActionContext.IsLoadTest())
                 StartCallsForLoad();
 
             // var response = AsyncContext.Run(async () => await ExecuteCall());
             var response = ExecuteCall().GetAwaiter().GetResult();
-            return BuildFromResponse(response);
+            return BuildFromResponse<T>(response);
+        }
+
+        public ResponseContext<dynamic> Then()
+        {
+            if (_httpActionContext.IsLoadTest())
+                StartCallsForLoad();
+
+            // var response = AsyncContext.Run(async () => await ExecuteCall());
+            var response = ExecuteCall().GetAwaiter().GetResult();
+            return BuildFromResponse<dynamic>(response);
         }
 
         #region HttpAction Strategy
@@ -292,12 +302,12 @@ namespace RA
             return new HttpResponseMessageWrapper { ElaspedExecution = watch.Elapsed, Response = response };
         }
 
-        private ResponseContext BuildFromResponse(HttpResponseMessageWrapper result)
+        private ResponseContext<T> BuildFromResponse<T>(HttpResponseMessageWrapper result)
         {
             // var content = AsyncContext.Run(async () => await result.Response.Content.ReadAsStringAsync());
             //var content = result.Response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
 
-            return new ResponseContext(result.Response, result.ElaspedExecution,_loadReponses.ToList());
+            return new ResponseContext<T>(result.Response, result.ElaspedExecution,_loadReponses.ToList());
 
             //return new ResponseContext(
             //    result.Response.StatusCode,

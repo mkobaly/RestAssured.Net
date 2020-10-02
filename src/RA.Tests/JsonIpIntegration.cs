@@ -12,12 +12,12 @@ namespace RA.Tests
             new RestAssured()
                 .Given()
                     .Name("JsonIP")
-				.When()
+                .When()
                     .Get("http://geoip.nekudo.com/api/")
-                .Then()
+                .Then<dynamic>()
                     .Debug()
-                    .TestBody("ip exist", x => x.ip != null)
-                    .Assert("ip exist");
+                    .TestBody(x => Assert.IsNotNull(x.ip));
+                    //.Assert("ip exist");
         }
     }
 

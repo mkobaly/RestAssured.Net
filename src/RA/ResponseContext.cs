@@ -12,11 +12,11 @@ using System.Net.Http;
 
 namespace RA
 {
-    public class ResponseContext
+    public class ResponseContext<T>
     {
         private readonly HttpStatusCode _statusCode;
         private readonly string _content;
-        private dynamic _parsedContent;
+        private T _parsedContent;
         private readonly Dictionary<string, IEnumerable<string>> _headers = new Dictionary<string, IEnumerable<string>>();
         private TimeSpan _elapsedExecutionTime;
         private readonly Dictionary<string, double> _loadValues = new Dictionary<string, double>();
@@ -31,6 +31,7 @@ namespace RA
         {
             _response = response;
             _content = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            
             _statusCode = response.StatusCode;
             _headers = response.Content.Headers.ToDictionary(x => x.Key.Trim(), x => x.Value);
             _elapsedExecutionTime = elaspedExecutionTime;
@@ -39,38 +40,38 @@ namespace RA
             Initialize();
         }
 
-        public ResponseContext(HttpStatusCode statusCode, string content, Dictionary<string, IEnumerable<string>> headers, TimeSpan elaspedExecutionTime, List<LoadResponse> loadResponses)
-        {
-            _statusCode = statusCode;
-            _content = content;
-            _headers = headers;
-            _elapsedExecutionTime = elaspedExecutionTime;
-            _loadResponses = loadResponses ?? new List<LoadResponse>();
+        //public ResponseContext(HttpStatusCode statusCode, string content, Dictionary<string, IEnumerable<string>> headers, TimeSpan elaspedExecutionTime, List<LoadResponse> loadResponses)
+        //{
+        //    _statusCode = statusCode;
+        //    _content = content;
+        //    _headers = headers;
+        //    _elapsedExecutionTime = elaspedExecutionTime;
+        //    _loadResponses = loadResponses ?? new List<LoadResponse>();
 
-            Initialize();
-        }
+        //    Initialize();
+        //}
 
         /// <summary>
         /// Retrieve an object from the response document.
         /// </summary>
         /// <param name="func"></param>
         /// <returns></returns>
-        public object Retrieve(Func<dynamic, object> func)
-        {
-            try
-            {
-                return func.Invoke(_parsedContent).Value;
-            }
-            catch { }
+        //public object Retrieve(Func<dynamic, object> func)
+        //{
+        //    try
+        //    {
+        //        return func.Invoke(_parsedContent).Value;
+        //    }
+        //    catch { }
 
-            try
-            {
-                return func.Invoke(_parsedContent);
-            }
-            catch { }
+        //    try
+        //    {
+        //        return func.Invoke(_parsedContent);
+        //    }
+        //    catch { }
 
-            return null;
-        }
+        //    return null;
+        //}
 
         /// <summary>
         /// Setup a test against the body of response document.
@@ -78,20 +79,27 @@ namespace RA
         /// <param name="ruleName"></param>
         /// <param name="func"></param>
         /// <returns></returns>
-        public ResponseContext TestBody(string ruleName, Func<dynamic, bool> func)
-        {
-            return TestWrapper(ruleName, () => func.Invoke(_parsedContent));
-        }
+        //public ResponseContext TestBody(string ruleName, Func<dynamic, bool> func)
+        //{
+        //    return TestWrapper(ruleName, () => func.Invoke(_parsedContent));
+        //}
 
-        public ResponseContext TestBody<T>(string ruleName, Func<T, bool> func)
-        {
-            _parsedContent = ServiceStack.Text.JsonSerializer.DeserializeFromString<T>(_content);
-            return TestWrapper(ruleName, () => func.Invoke(_parsedContent));
-        }
+        //public ResponseContext TestBody<T>(string ruleName, Func<T, bool> func)
+        //{
+        //    _parsedContent = ServiceStack.Text.JsonSerializer.DeserializeFromString<T>(_content);
+        //    return TestWrapper(ruleName, () => func.Invoke(_parsedContent));
+        //}
 
-        public ResponseContext TestBody<T>(Action<T> action)
+        //public ResponseContext TestBody<T>(Action<T> action)
+        //{
+        //    _parsedContent = ServiceStack.Text.JsonSerializer.DeserializeFromString<T>(_content);
+        //    action.Invoke(_parsedContent);
+        //    return this;
+        //}
+
+        public ResponseContext<T> TestBody(Action<T> action)
         {
-            _parsedContent = ServiceStack.Text.JsonSerializer.DeserializeFromString<T>(_content);
+            //_parsedContent = ServiceStack.Text.JsonSerializer.DeserializeFromString<T>(_content);
             action.Invoke(_parsedContent);
             return this;
         }
@@ -103,18 +111,25 @@ namespace RA
         /// <param name="key"></param>
         /// <param name="func"></param>
         /// <returns></returns>
-        public ResponseContext TestHeader(string ruleName, string key, Func<string, bool> func)
+        //public ResponseContext TestHeader(string ruleName, string key, Func<string, bool> func)
+        //{
+        //    return TestWrapper(ruleName, () => func.Invoke(HeaderValue(key.Trim())));
+        //}
+
+        public ResponseContext<T> TestHeader(string headerKey, Action<string> action)
         {
-            return TestWrapper(ruleName, () => func.Invoke(HeaderValue(key.Trim())));
+            var result = HeaderValue(headerKey);
+            action.Invoke(result);
+            return this;
         }
 
-        public ResponseContext TestHeader(Action<ResponseContext> action)
+        public ResponseContext<T> TestHeader(Action<ResponseContext<T>> action)
         {
             action.Invoke(this);
             return this;
         }
 
-        public ResponseContext TestResponse(Action<HttpResponseMessage> action)
+        public ResponseContext<T> TestResponse(Action<HttpResponseMessage> action)
         {
             action.Invoke(_response);
             return this;
@@ -126,9 +141,16 @@ namespace RA
         /// <param name="ruleName"></param>
         /// <param name="func"></param>
         /// <returns></returns>
-        public ResponseContext TestElaspedTime(string ruleName, Func<double, bool> func)
+        //public ResponseContext TestElaspedTime(string ruleName, Func<double, bool> func)
+        //{
+        //    return TestWrapper(ruleName, () => func.Invoke(_elapsedExecutionTime.TotalMilliseconds));
+        //}
+
+        public ResponseContext<T> TestElaspedTime(Action<double> action)
         {
-            return TestWrapper(ruleName, () => func.Invoke(_elapsedExecutionTime.TotalMilliseconds));
+            action.Invoke(_elapsedExecutionTime.TotalMilliseconds);
+            return this;
+            //return TestWrapper(ruleName, () => func.Invoke(_elapsedExecutionTime.TotalMilliseconds));
         }
 
         /// <summary>
@@ -140,10 +162,10 @@ namespace RA
         /// <param name="key"></param>
         /// <param name="func"></param>
         /// <returns></returns>
-        public ResponseContext TestLoad(string ruleName, string key, Func<double, bool> func)
-        {
-            return TestWrapper(ruleName, () => func.Invoke(LoadValue(key.Trim())));
-        }
+        //public ResponseContext TestLoad(string ruleName, string key, Func<double, bool> func)
+        //{
+        //    return TestWrapper(ruleName, () => func.Invoke(LoadValue(key.Trim())));
+        //}
 
         /// <summary>
         /// Setup a test against the response status
@@ -152,18 +174,24 @@ namespace RA
         /// <param name="ruleName"></param>
         /// <param name="func"></param>
         /// <returns></returns>
-        public ResponseContext TestStatus(string ruleName, Func<int, bool> func)
-        {
-            return TestWrapper(ruleName, () => func.Invoke((int)_statusCode));
-        }
+        //public ResponseContext TestStatus(string ruleName, Func<int, bool> func)
+        //{
+        //    return TestWrapper(ruleName, () => func.Invoke((int)_statusCode));
+        //}
 
-        public ResponseContext TestStatus(Action<HttpStatusCode> action)
+        /// <summary>
+        /// Setup a test against the response status
+        /// eg: OK 200 or Error 400
+        /// </summary>
+        /// <param name="action"></param>
+        /// <returns></returns>
+        public ResponseContext<T> TestStatus(Action<HttpStatusCode> action)
         {
             action.Invoke(_statusCode);
             return this;
         }
 
-        private ResponseContext TestWrapper(string ruleName, Func<bool> func)
+        private ResponseContext<T> TestWrapper(string ruleName, Func<bool> func)
         {
             if (_assertions.ContainsKey(ruleName))
                 throw new ArgumentException(string.Format("Rule for ({0}) already exist", ruleName));
@@ -221,43 +249,43 @@ namespace RA
         //    return this;
         //}
 
-        public ResponseContext Assert(string ruleName)
-        {
-            if (!_assertions.ContainsKey(ruleName)) return this;
+        //public ResponseContext Assert(string ruleName)
+        //{
+        //    if (!_assertions.ContainsKey(ruleName)) return this;
 
-            if (!_assertions[ruleName])
-                throw new AssertException($"({ruleName}) Test Failed");
-            // in order to allow multiple asserts
-            return this;
-        }
+        //    if (!_assertions[ruleName])
+        //        throw new AssertException($"({ruleName}) Test Failed");
+        //    // in order to allow multiple asserts
+        //    return this;
+        //}
 
         /// <summary>
         /// Assert schema for validity.  Failures will produce an AssertException.
         /// </summary>
-        public void AssertSchema()
-        {
-            if (!_isSchemaValid)
-            {
-                throw new AssertException(string.Format("Schema Check Failed"));
-            }
-        }
+        //public void AssertSchema()
+        //{
+        //    if (!_isSchemaValid)
+        //    {
+        //        throw new AssertException(string.Format("Schema Check Failed"));
+        //    }
+        //}
 
-        /// <summary>
-        /// Assert all test and schema for validity. You can optionally skip schema validation.  Failures will produce an AssertException.
-        /// </summary>
-        /// /// <param name="assertSchema"></param>
-        public void AssertAll(bool assertSchema = true)
-        {
-            Console.WriteLine(_assertions.Count);
-            foreach (var assertion in _assertions)
-            {
-                Console.WriteLine(assertion.Value);
-                if (!assertion.Value)
-                    throw new AssertException(string.Format("({0}) Test Failed", assertion.Key));
-            }
-            if (assertSchema)
-                AssertSchema();
-        }
+        ///// <summary>
+        ///// Assert all test and schema for validity. You can optionally skip schema validation.  Failures will produce an AssertException.
+        ///// </summary>
+        ///// /// <param name="assertSchema"></param>
+        //public void AssertAll(bool assertSchema = true)
+        //{
+        //    Console.WriteLine(_assertions.Count);
+        //    foreach (var assertion in _assertions)
+        //    {
+        //        Console.WriteLine(assertion.Value);
+        //        if (!assertion.Value)
+        //            throw new AssertException(string.Format("({0}) Test Failed", assertion.Key));
+        //    }
+        //    if (assertSchema)
+        //        AssertSchema();
+        //}
 
         private void Initialize()
         {
@@ -275,18 +303,7 @@ namespace RA
                 {
                     try
                     {
-                        //TODO: fix this
-                        //_parsedContent = JObject.Parse(_content);
-                        return;
-                    }
-                    catch
-                    {
-                    }
-
-                    try
-                    {
-                        //TODO: why duplicated? fix this
-                        //_parsedContent = JArray.Parse(_content);
+                        _parsedContent = ServiceStack.Text.JsonSerializer.DeserializeFromString<T>(_content);
                         return;
                     }
                     catch
@@ -298,22 +315,22 @@ namespace RA
                     return;
                 }
             }
-            else if (contentType.Contains("xml"))
-            {
-                if (!string.IsNullOrEmpty(_content))
-                {
-                    try
-                    {
-                        _parsedContent = XDocument.Parse(_content);
-                        return;
-                    }
-                    catch
-                    {
-                    }
-                }
-            }
+            //else if (contentType.Contains("xml"))
+            //{
+            //    if (!string.IsNullOrEmpty(_content))
+            //    {
+            //        try
+            //        {
+            //            _parsedContent = XDocument.Parse(_content);
+            //            return;
+            //        }
+            //        catch
+            //        {
+            //        }
+            //    }
+            //}
 
-            _parsedContent = _content;
+            _parsedContent = (dynamic)_content;
             //if (!string.IsNullOrEmpty(_content))
             //    throw new Exception(string.Format("({0}) not supported", contentType));
         }
@@ -356,7 +373,7 @@ namespace RA
         /// Output all debug values from the setup context.
         /// </summary>
         /// <returns></returns>
-        public ResponseContext Debug()
+        public ResponseContext<T> Debug()
         {
             "status code".WriteHeader();
             ((int)_statusCode).ToString().WriteLine();
@@ -395,7 +412,7 @@ namespace RA
         /// Write the response of all asserted test via Console.IO
         /// </summary>
         /// <returns></returns>
-        public ResponseContext WriteAssertions()
+        public ResponseContext<T> WriteAssertions()
         {
             "assertions".WriteHeader();
             foreach (var assertion in _assertions)

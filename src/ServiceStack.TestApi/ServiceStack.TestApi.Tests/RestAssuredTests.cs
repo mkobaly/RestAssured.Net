@@ -25,13 +25,13 @@ namespace ServiceStack.TestApi.Tests
               .When()
                 //.Get("https://localhost:5001/hello")
                 .Get(helloRequest)
-              .Then()
+              .Then<HelloResponse>()
                 //Give the name of the test and a lambda expression to test with
                 //The lambda expression keys off of 'x' which represents the json blob as a dynamic.
                 //.TestBody("test a", x => x.result != "Hello, Bob!")
-                .TestBody<HelloResponse>("foo", x => x.Result == "Hello, Bob!")
+                .TestBody((x) => Assert.AreEqual(x.Result, "Hello, Bob!"));
                 //Throw an AssertException if the test case is false.
-                .Assert("foo");
+                //.Assert("foo");
 
         }
 
@@ -48,8 +48,8 @@ namespace ServiceStack.TestApi.Tests
               .When()
                 //.Get("https://localhost:5001/hello")
                 .Post(helloRequest)
-              .Then()
-                  .TestBody<HelloResponse>(x => Assert.AreEqual("Hello, Bob!", x.Result));
+              .Then<HelloResponse>()
+                  .TestBody(x => Assert.AreEqual("Hello, Bob!", x.Result));
                   //.TestBody<HelloResponse>("foo", x => x.Result == "Hello, Bob!")
                 //Throw an AssertException if the test case is false.
                 //.Assert("foo");
@@ -85,10 +85,8 @@ namespace ServiceStack.TestApi.Tests
              .When()
                .Post()
              .Then()
-                 .TestBody("SessionData Exists", x => ((string)x).Contains("SessionData"))
-                 .Debug()
-                 .AssertAll(false);
-                 
+                 .TestBody(x => ((string)x).Contains("SessionData"))
+                 .Debug();                 
         }
 
         [Test]
@@ -120,7 +118,7 @@ namespace ServiceStack.TestApi.Tests
                 .Uri("/AMAG.Auth/Login")
                 .Param("Username", "admin1234")
                 .Param("Password", "Passw0rd1")
-                //.Cookie("Cookie", cookie)
+              //.Cookie("Cookie", cookie)
               //.Header("Cookie", cookie)
               //.Header("Content-Type", "application/json")
               //.Header("Content-Type", "application/json")
@@ -129,9 +127,9 @@ namespace ServiceStack.TestApi.Tests
                 .Post()
               .Then()
                   //.TestBody("SessionData Exists", x => x.ToString() != null)
-                  .TestBody("SessionData Exists", x => ((string)x).Contains("SessionData"))
-                  .Debug()
-                  .AssertAll(false);
+                  .TestBody(x => ((string)x).Contains("SessionData"))
+                  .Debug();
+                  
 
 
 
