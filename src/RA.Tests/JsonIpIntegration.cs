@@ -34,7 +34,7 @@ namespace RA.Tests
                     .Host("https://jsonplaceholder.typicode.com")
                     .Uri("/posts")
                 .When()
-                    .Load(5, 10)
+                    //.Load(5, 10)
                     .Get()
                 .Then()
                     .Debug();

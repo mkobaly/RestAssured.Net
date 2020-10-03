@@ -36,39 +36,5 @@ namespace RA.Extensions
             Console.Write(source, objects);
             Console.ResetColor();
         }
-
-        public static void WriteTest(this KeyValuePair<string, bool> source)
-        {
-            if (source.Value)
-            {
-                WritePassedTest();
-            }
-            else
-            {
-                WriteFailedTest();
-            }
-
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine(" : {0}", source.Key);
-            Console.ResetColor();
-
-            
-
-            Console.ResetColor();
-        }
-
-        public static void WritePassedTest()
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.Write("- Passed");
-            Console.ResetColor();
-        }
-
-        public static void WriteFailedTest()
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.Write("- Failed");
-            Console.ResetColor();
-        }
     }
 }

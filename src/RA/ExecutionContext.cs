@@ -21,7 +21,6 @@ namespace RA
         private readonly SetupContext _setupContext;
         private readonly HttpActionContext _httpActionContext;
         private readonly HttpClient _httpClient;
-        private ConcurrentQueue<LoadResponse> _loadReponses = new ConcurrentQueue<LoadResponse>();
 
         public ExecutionContext(SetupContext setupContext, HttpActionContext httpActionContext)
         {
@@ -33,22 +32,31 @@ namespace RA
 
         public ResponseContext<T> Then<T>()
         {
-            if (_httpActionContext.IsLoadTest())
-                StartCallsForLoad();
+            try
+            {
+                var response = ExecuteCall().GetAwaiter().GetResult();
+                return BuildFromResponse<T>(response);
+            }
+            catch (OperationCanceledException cex)
+            {
 
-            // var response = AsyncContext.Run(async () => await ExecuteCall());
-            var response = ExecuteCall().GetAwaiter().GetResult();
-            return BuildFromResponse<T>(response);
+                throw new Exception("api call exceeded timeout threshold", cex);
+            }
         }
 
         public ResponseContext<dynamic> Then()
         {
-            if (_httpActionContext.IsLoadTest())
-                StartCallsForLoad();
+            try
+            {
+                var response = ExecuteCall().GetAwaiter().GetResult();
+                return BuildFromResponse<dynamic>(response);
+            }
+            catch (OperationCanceledException cex)
+            {
 
-            // var response = AsyncContext.Run(async () => await ExecuteCall());
-            var response = ExecuteCall().GetAwaiter().GetResult();
-            return BuildFromResponse<dynamic>(response);
+                throw new Exception("api call exceeded timeout threshold", cex);
+            }
+           
         }
 
         #region HttpAction Strategy
@@ -81,7 +89,7 @@ namespace RA
 
             AppendHeaders(request);
 	        AppendCookies(request);
-	        SetTimeout();
+	        //SetTimeout();
 
             request.Content = BuildContent();
 
@@ -98,7 +106,7 @@ namespace RA
 
             AppendHeaders(request);
 	        AppendCookies(request);
-	        SetTimeout();
+	        //SetTimeout();
 
 			request.Content = BuildContent();
 
@@ -115,7 +123,7 @@ namespace RA
 
             AppendHeaders(request);
 	        AppendCookies(request);
-	        SetTimeout();
+	        //SetTimeout();
 
 			request.Content = BuildContent();
 
@@ -132,7 +140,7 @@ namespace RA
 
             AppendHeaders(request);
 	        AppendCookies(request);
-	        SetTimeout();
+	        //SetTimeout();
 
 			request.Content = BuildContent();
 
@@ -149,7 +157,7 @@ namespace RA
 
             AppendHeaders(request);
 	        AppendCookies(request);
-	        SetTimeout();
+	        //SetTimeout();
 
 			request.Content = BuildContent();
 
@@ -184,13 +192,13 @@ namespace RA
 		    request.Headers.Add("Cookie", string.Join(";", _setupContext.Cookies().Select(x => x.Key + "=" + x.Value)));
 		}
 
-	    private void SetTimeout()
-	    {
-		    if (_setupContext.Timeout().HasValue)
-		    {
-				_httpClient.Timeout = new TimeSpan(_setupContext.Timeout().Value.Ticks);
-		    }
-	    }
+	   // private void SetTimeout()
+	   // {
+		  //  if (_setupContext.Timeout().HasValue)
+		  //  {
+				//_httpClient.Timeout = new TimeSpan(_setupContext.Timeout().Value.Ticks);
+		  //  }
+	   // }
 
         #endregion
 
@@ -244,60 +252,20 @@ namespace RA
 
         #endregion
 
-        #region Load Test Code
-
-        public void StartCallsForLoad()
-        {
-            ServicePointManager.DefaultConnectionLimit = _httpActionContext.Threads();
-
-            var cancellationTokenSource = new CancellationTokenSource();
-
-            var taskThreads = new List<Task>();
-            for (var i = 0; i < _httpActionContext.Threads(); i++)
-            {
-                taskThreads.Add(Task.Run(async () =>
-                {
-                    await SingleThread(cancellationTokenSource.Token);
-                }, cancellationTokenSource.Token));
-            }
-
-            Timer timer = null;
-            timer = new Timer((ignore) =>
-            {
-                timer.Dispose();
-                cancellationTokenSource.Cancel();
-            }, null, TimeSpan.FromSeconds(_httpActionContext.Seconds()), TimeSpan.FromMilliseconds(-1));
-
-            // swapping this out
-            // AsyncContext.Run(async () => await Task.WhenAll(taskThreads));
-            Task.WhenAll(taskThreads).GetAwaiter().GetResult();
-        }
-
-        public async Task SingleThread(CancellationToken cancellationToken)
-        {
-            do
-            {
-                await MapCall();
-            } while (!cancellationToken.IsCancellationRequested);
-        }
-
-        public async Task MapCall()
-        {
-            var loadResponse = new LoadResponse(-1, -1);
-            _loadReponses.Enqueue(loadResponse);
-
-            var result = await ExecuteCall();
-            loadResponse.StatusCode = (int)result.Response.StatusCode;
-            loadResponse.Ticks = result.ElaspedExecution.Ticks;
-        }
-
-        #endregion
-
+       
         private async Task<HttpResponseMessageWrapper> ExecuteCall()
         {
+            CancellationToken cancellationToken = CancellationToken.None;
+            if (_setupContext.Timeout().HasValue)
+            {
+                var cts = new CancellationTokenSource();
+                cts.CancelAfter(_setupContext.Timeout().Value);
+                cancellationToken = cts.Token;
+            }
+
             var watch = new Stopwatch();
             watch.Start();
-            var response = await _httpClient.SendAsync(BuildRequest());
+            var response = await _httpClient.SendAsync(BuildRequest(), cancellationToken);
             watch.Stop();
             return new HttpResponseMessageWrapper { ElaspedExecution = watch.Elapsed, Response = response };
         }
@@ -307,16 +275,7 @@ namespace RA
             // var content = AsyncContext.Run(async () => await result.Response.Content.ReadAsStringAsync());
             //var content = result.Response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
 
-            return new ResponseContext<T>(result.Response, result.ElaspedExecution,_loadReponses.ToList());
-
-            //return new ResponseContext(
-            //    result.Response.StatusCode,
-            //    content,
-            //    result.Response.Content.Headers.ToDictionary(x => x.Key.Trim(), x => x.Value),
-            //    result.ElaspedExecution,
-            //    _loadReponses.ToList()
-            //    );
-
+            return new ResponseContext<T>(result.Response, result.ElaspedExecution);
         }
 
         /// <summary>

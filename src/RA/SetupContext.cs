@@ -40,8 +40,8 @@ namespace RA
 
         public SetupContext()
         {
-            var host = Environment.GetEnvironmentVariable("integration_tests_host");
-            if (!string.IsNullOrWhiteSpace(host)) _host = host;
+            //var host = Environment.GetEnvironmentVariable("integration_tests_host");
+            //if (!string.IsNullOrWhiteSpace(host)) _host = host;
         }
 
 

@@ -18,12 +18,8 @@ namespace RA
     {
         private readonly SetupContext _setupContext;
         private string _url;
-        private bool _isLoadTest = false;
-        private int _threads = 1;
-        private int _seconds = 60;
         private HttpActionType _httpAction;
-        private ConcurrentDictionary<Type, string> _cache = new ConcurrentDictionary<Type, string>();
-
+      
         public HttpActionContext(SetupContext setupContext)
         {
             _setupContext = setupContext;
@@ -47,53 +43,8 @@ namespace RA
             return _url;
         }
 
-        /// <summary>
-        /// Return value indicating setup for load test.
-        /// </summary>
-        /// <returns></returns>
-        public bool IsLoadTest()
-        {
-            return _isLoadTest;
-        }
-
-        /// <summary>
-        /// Return thread count used in load test.
-        /// </summary>
-        /// <returns></returns>
-        public int Threads()
-        {
-            return _threads;
-        }
-
-        /// <summary>
-        /// Return seconds to use for load test.
-        /// </summary>
-        /// <returns></returns>
-        public int Seconds()
-        {
-            return _seconds;
-        }
-
-        /// <summary>
-        /// Configure load test with the number of threads and amount of time in seconds to run the test with.
-        /// Default of 1 thread and 60 seconds are used if no values are specified.
-        /// </summary>
-        /// <param name="threads"></param>
-        /// <param name="seconds"></param>
-        /// <returns></returns>
-        public HttpActionContext Load(int threads = 1, int seconds = 60)
-        {
-            _isLoadTest = true;
-
-            if (threads < 0) threads = 1;
-            _threads = threads;
-
-            if (seconds < 0) seconds = 60;
-            _seconds = seconds;
-
-            return this;
-        }
-
+              
+       
         /// <summary>
         /// Configure test with a GET verb.  The url parameter is optional if similar info was provided through the setup context.
         /// </summary>
@@ -200,34 +151,33 @@ namespace RA
             return this;
         }
 
-        
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="url"></param>
         public void SetUrl(string url)
         {
             if (url.IsEmpty() && _setupContext.Host().IsEmpty())
                 throw new ArgumentException("url must be provided");
 
             Uri uri;
+            //nothing passed in so take all values from setupContext (host, port, module, uri)
             if (url.IsEmpty())
             {
                 uri = new Uri(new Uri(_setupContext.Host()), $"{_setupContext.ModuleUri()}{_setupContext.Uri()}");
+                _url = uri.OriginalString;
+                return;
             } 
-            else
+
+            if (url.ToLower().StartsWith("http")) //user provided full URL so just use that
             {
-                if (url.ToLower().StartsWith("http"))
-                {
-                    uri = new Uri(url);
-                } 
-                else
-                {
-                    uri = new Uri(new Uri(_setupContext.Host()), _setupContext.Uri());
-                }
-                    
-            }
+                uri = new Uri(url);
+                _url = uri.OriginalString;
+                return;
+            } 
 
-            //var uri = url.IsNotEmpty()
-            //    ? new Uri(url)
-            //    : new Uri(new Uri(_setupContext.Host()), $"{_setupContext.ModuleUri()}{_setupContext.Uri()}");
-
+            //provided rest url path, so just use host, port and passed in url)
+             uri = new Uri(new Uri(_setupContext.Host()), url);
             _url = uri.OriginalString;
         }
 
@@ -236,13 +186,6 @@ namespace RA
             SetUrl(url);
             _httpAction = actionType;
             return new ExecutionContext(_setupContext, this);
-        }
-
-        private string GetModuleUrl(Type type)
-        {
-            var parts = type.FullName.Split('.');
-            //var prefix = parts[0] + 
-            return null;
         }
     }
 }
